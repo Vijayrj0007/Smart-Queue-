@@ -1,0 +1,398 @@
+﻿▲ Next.js 16.2.2 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+node.exe : 
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (:  
+  String) [], RemoteExc   
+ eption
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+> Build error occurred
+Error: Turbopack build 
+failed with 6 errors:
+./src/components/Footer.ts
+x:9:1
+Export Github doesn't 
+exist in target module
+  [90m 7 |[0m 
+[36mimport[0m 
+[33mReact[0m 
+[36mfrom[0m 
+[32m'react'[0m;
+  [90m 8 |[0m 
+[36mimport[0m 
+[33mLink[0m 
+[36mfrom[0m 
+[32m'next/link'[0m;
+[31m[1m>[0m [90m 9 
+|[0m [36mimport[0m { 
+[33mMail[0m, 
+[33mPhone[0m, 
+[33mMapPin[0m, 
+[33mGithub[0m, 
+[33mTwitter[0m, 
+[33mLinkedin[0m } 
+[36mfrom[0m 
+[32m'lucide-react'[0m;
+  [90m   |[0m [31m[1m^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
+[0m
+  [90m10 |[0m
+  [90m11 |[0m 
+[36mexport[0m 
+[36mdefault[0m 
+[36mfunction[0m 
+[33mFooter[0m() {
+  [90m12 |[0m   
+[36mreturn[0m (
+
+The export Github was not 
+found in module [project]/
+node_modules/lucide-react/
+dist/esm/lucide-react.js 
+[app-client] (ecmascript).
+Did you mean to import 
+Gift?
+All exports of the module 
+are statically known (It 
+doesn't have dynamic 
+exports). So it's known 
+statically that the 
+requested export doesn't 
+exist.
+
+Import trace:
+  Server Component:
+    ./src/components/Foote
+r.tsx
+    ./src/app/layout.tsx
+
+
+./src/components/Footer.ts
+x:9:1
+Export Github doesn't 
+exist in target module
+  [90m 7 |[0m 
+[36mimport[0m 
+[33mReact[0m 
+[36mfrom[0m 
+[32m'react'[0m;
+  [90m 8 |[0m 
+[36mimport[0m 
+[33mLink[0m 
+[36mfrom[0m 
+[32m'next/link'[0m;
+[31m[1m>[0m [90m 9 
+|[0m [36mimport[0m { 
+[33mMail[0m, 
+[33mPhone[0m, 
+[33mMapPin[0m, 
+[33mGithub[0m, 
+[33mTwitter[0m, 
+[33mLinkedin[0m } 
+[36mfrom[0m 
+[32m'lucide-react'[0m;
+  [90m   |[0m [31m[1m^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
+[0m
+  [90m10 |[0m
+  [90m11 |[0m 
+[36mexport[0m 
+[36mdefault[0m 
+[36mfunction[0m 
+[33mFooter[0m() {
+  [90m12 |[0m   
+[36mreturn[0m (
+
+The export Github was not 
+found in module [project]/
+node_modules/lucide-react/
+dist/esm/lucide-react.js 
+[app-ssr] (ecmascript).
+Did you mean to import 
+Gift?
+All exports of the module 
+are statically known (It 
+doesn't have dynamic 
+exports). So it's known 
+statically that the 
+requested export doesn't 
+exist.
+
+Import trace:
+  Server Component:
+    ./src/components/Foote
+r.tsx
+    ./src/app/layout.tsx
+
+
+./src/components/Footer.ts
+x:9:1
+Export Linkedin doesn't 
+exist in target module
+  [90m 7 |[0m 
+[36mimport[0m 
+[33mReact[0m 
+[36mfrom[0m 
+[32m'react'[0m;
+  [90m 8 |[0m 
+[36mimport[0m 
+[33mLink[0m 
+[36mfrom[0m 
+[32m'next/link'[0m;
+[31m[1m>[0m [90m 9 
+|[0m [36mimport[0m { 
+[33mMail[0m, 
+[33mPhone[0m, 
+[33mMapPin[0m, 
+[33mGithub[0m, 
+[33mTwitter[0m, 
+[33mLinkedin[0m } 
+[36mfrom[0m 
+[32m'lucide-react'[0m;
+  [90m   |[0m [31m[1m^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
+[0m
+  [90m10 |[0m
+  [90m11 |[0m 
+[36mexport[0m 
+[36mdefault[0m 
+[36mfunction[0m 
+[33mFooter[0m() {
+  [90m12 |[0m   
+[36mreturn[0m (
+
+The export Linkedin was 
+not found in module [proje
+ct]/node_modules/lucide-re
+act/dist/esm/lucide-react.
+js [app-client] 
+(ecmascript).
+Did you mean to import 
+Link?
+All exports of the module 
+are statically known (It 
+doesn't have dynamic 
+exports). So it's known 
+statically that the 
+requested export doesn't 
+exist.
+
+Import trace:
+  Server Component:
+    ./src/components/Foote
+r.tsx
+    ./src/app/layout.tsx
+
+
+./src/components/Footer.ts
+x:9:1
+Export Linkedin doesn't 
+exist in target module
+  [90m 7 |[0m 
+[36mimport[0m 
+[33mReact[0m 
+[36mfrom[0m 
+[32m'react'[0m;
+  [90m 8 |[0m 
+[36mimport[0m 
+[33mLink[0m 
+[36mfrom[0m 
+[32m'next/link'[0m;
+[31m[1m>[0m [90m 9 
+|[0m [36mimport[0m { 
+[33mMail[0m, 
+[33mPhone[0m, 
+[33mMapPin[0m, 
+[33mGithub[0m, 
+[33mTwitter[0m, 
+[33mLinkedin[0m } 
+[36mfrom[0m 
+[32m'lucide-react'[0m;
+  [90m   |[0m [31m[1m^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
+[0m
+  [90m10 |[0m
+  [90m11 |[0m 
+[36mexport[0m 
+[36mdefault[0m 
+[36mfunction[0m 
+[33mFooter[0m() {
+  [90m12 |[0m   
+[36mreturn[0m (
+
+The export Linkedin was 
+not found in module [proje
+ct]/node_modules/lucide-re
+act/dist/esm/lucide-react.
+js [app-ssr] (ecmascript).
+Did you mean to import 
+Link?
+All exports of the module 
+are statically known (It 
+doesn't have dynamic 
+exports). So it's known 
+statically that the 
+requested export doesn't 
+exist.
+
+Import trace:
+  Server Component:
+    ./src/components/Foote
+r.tsx
+    ./src/app/layout.tsx
+
+
+./src/components/Footer.ts
+x:9:1
+Export Twitter doesn't 
+exist in target module
+  [90m 7 |[0m 
+[36mimport[0m 
+[33mReact[0m 
+[36mfrom[0m 
+[32m'react'[0m;
+  [90m 8 |[0m 
+[36mimport[0m 
+[33mLink[0m 
+[36mfrom[0m 
+[32m'next/link'[0m;
+[31m[1m>[0m [90m 9 
+|[0m [36mimport[0m { 
+[33mMail[0m, 
+[33mPhone[0m, 
+[33mMapPin[0m, 
+[33mGithub[0m, 
+[33mTwitter[0m, 
+[33mLinkedin[0m } 
+[36mfrom[0m 
+[32m'lucide-react'[0m;
+  [90m   |[0m [31m[1m^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
+[0m
+  [90m10 |[0m
+  [90m11 |[0m 
+[36mexport[0m 
+[36mdefault[0m 
+[36mfunction[0m 
+[33mFooter[0m() {
+  [90m12 |[0m   
+[36mreturn[0m (
+
+The export Twitter was 
+not found in module [proje
+ct]/node_modules/lucide-re
+act/dist/esm/lucide-react.
+js [app-client] 
+(ecmascript).
+Did you mean to import 
+Timer?
+All exports of the module 
+are statically known (It 
+doesn't have dynamic 
+exports). So it's known 
+statically that the 
+requested export doesn't 
+exist.
+
+Import trace:
+  Server Component:
+    ./src/components/Foote
+r.tsx
+    ./src/app/layout.tsx
+
+
+./src/components/Footer.ts
+x:9:1
+Export Twitter doesn't 
+exist in target module
+  [90m 7 |[0m 
+[36mimport[0m 
+[33mReact[0m 
+[36mfrom[0m 
+[32m'react'[0m;
+  [90m 8 |[0m 
+[36mimport[0m 
+[33mLink[0m 
+[36mfrom[0m 
+[32m'next/link'[0m;
+[31m[1m>[0m [90m 9 
+|[0m [36mimport[0m { 
+[33mMail[0m, 
+[33mPhone[0m, 
+[33mMapPin[0m, 
+[33mGithub[0m, 
+[33mTwitter[0m, 
+[33mLinkedin[0m } 
+[36mfrom[0m 
+[32m'lucide-react'[0m;
+  [90m   |[0m [31m[1m^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
+[0m
+  [90m10 |[0m
+  [90m11 |[0m 
+[36mexport[0m 
+[36mdefault[0m 
+[36mfunction[0m 
+[33mFooter[0m() {
+  [90m12 |[0m   
+[36mreturn[0m (
+
+The export Twitter was 
+not found in module [proje
+ct]/node_modules/lucide-re
+act/dist/esm/lucide-react.
+js [app-ssr] (ecmascript).
+Did you mean to import 
+Timer?
+All exports of the module 
+are statically known (It 
+doesn't have dynamic 
+exports). So it's known 
+statically that the 
+requested export doesn't 
+exist.
+
+Import trace:
+  Server Component:
+    ./src/components/Foote
+r.tsx
+    ./src/app/layout.tsx
+
+
+    at <unknown> (./src/co
+mponents/Footer.tsx:9:1)
+    at <unknown> (./src/co
+mponents/Footer.tsx:9:1)
+    at <unknown> (./src/co
+mponents/Footer.tsx:9:1)
+    at <unknown> (./src/co
+mponents/Footer.tsx:9:1)
+    at <unknown> (./src/co
+mponents/Footer.tsx:9:1)
+    at <unknown> (./src/co
+mponents/Footer.tsx:9:1)
