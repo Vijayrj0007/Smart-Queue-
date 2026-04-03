@@ -15,7 +15,7 @@ import {
 import { notificationService } from '@/services/notification.service';
 
 export default function Navbar() {
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, isOrganization, logout } = useAuth();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -51,6 +51,7 @@ export default function Navbar() {
   }, [pathname]);
 
   const isAdminPage = pathname?.startsWith('/admin');
+  const isOrgPage = pathname?.startsWith('/org');
 
   const navLinks = [
     { href: '/', label: 'Home' },
@@ -144,12 +145,17 @@ export default function Navbar() {
                             <span className="badge badge-active mt-1 text-[10px]">Admin</span>
                           )}
                         </div>
-                        <Link href="/dashboard" className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-gray-50 hover:text-[var(--primary)] transition-colors">
+                        <Link
+                          href={isOrganization ? "/org/dashboard" : "/dashboard"}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-gray-50 hover:text-[var(--primary)] transition-colors"
+                        >
                           <LayoutDashboard size={16} /> Dashboard
                         </Link>
-                        <Link href="/history" className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-gray-50 hover:text-[var(--primary)] transition-colors">
-                          <History size={16} /> Booking History
-                        </Link>
+                        {!isOrganization && (
+                          <Link href="/history" className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-gray-50 hover:text-[var(--primary)] transition-colors">
+                            <History size={16} /> Booking History
+                          </Link>
+                        )}
                         {isAdmin && (
                           <Link href="/admin" className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:bg-gray-50 hover:text-[var(--primary)] transition-colors">
                             <Shield size={16} /> Admin Panel
@@ -174,6 +180,12 @@ export default function Navbar() {
                   className="px-5 py-2 text-sm font-semibold text-[var(--primary)] border-2 border-[var(--primary)] rounded-xl hover:bg-[var(--primary-50)] transition-all"
                 >
                   Login
+                </Link>
+                <Link
+                  href="/org/register"
+                  className="px-5 py-2 text-sm font-semibold text-[var(--text-secondary)] border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                >
+                  Provider Sign Up
                 </Link>
                 <Link
                   href="/register"
@@ -214,12 +226,14 @@ export default function Navbar() {
             ))}
             {isAuthenticated ? (
               <>
-                <Link href="/dashboard" className="block px-4 py-3 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-gray-50">
+                <Link href={isOrganization ? "/org/dashboard" : "/dashboard"} className="block px-4 py-3 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-gray-50">
                   Dashboard
                 </Link>
-                <Link href="/history" className="block px-4 py-3 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-gray-50">
-                  History
-                </Link>
+                {!isOrganization && (
+                  <Link href="/history" className="block px-4 py-3 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-gray-50">
+                    History
+                  </Link>
+                )}
                 {isAdmin && (
                   <Link href="/admin" className="block px-4 py-3 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-gray-50">
                     Admin Panel
@@ -233,6 +247,9 @@ export default function Navbar() {
               <div className="flex gap-3 pt-3 border-t border-gray-100">
                 <Link href="/login" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-[var(--primary)] border-2 border-[var(--primary)] rounded-xl">
                   Login
+                </Link>
+                <Link href="/org/register" className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] border-2 border-gray-200 rounded-xl">
+                  Provider
                 </Link>
                 <Link href="/register" className="flex-1 text-center btn-primary text-sm !py-2.5">
                   Get Token

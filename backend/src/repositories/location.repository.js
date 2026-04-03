@@ -39,7 +39,7 @@ const findQueuesWithStatsByLocationId = (locationId) =>
       COUNT(CASE WHEN t.status IN ('completed', 'skipped') AND date(t.booked_at) = date('now') THEN 1 END) as today_served
      FROM queues q
      LEFT JOIN tokens t ON t.queue_id = q.id AND date(t.booked_at) = date('now')
-     WHERE q.location_id = $1
+     WHERE q.location_id = $1 AND q.status = 'active'
      GROUP BY q.id
      ORDER BY q.created_at`,
     [locationId]

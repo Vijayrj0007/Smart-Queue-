@@ -12,7 +12,14 @@ const validate = (schema) => {
     const errors = [];
 
     for (const [field, rules] of Object.entries(schema)) {
-      const value = req.body[field];
+      const originalValue = req.body[field];
+      const value =
+        typeof originalValue === 'string' ? originalValue.trim() : originalValue;
+
+      // Persist sanitized string values so downstream layers receive clean inputs.
+      if (typeof originalValue === 'string') {
+        req.body[field] = value;
+      }
 
       // Check required fields
       if (rules.required && (value === undefined || value === null || value === '')) {

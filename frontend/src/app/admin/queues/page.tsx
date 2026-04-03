@@ -1,288 +1,305 @@
 'use client';
 
 /**
- * Admin Queue Control Page
- * Select a queue and manage tokens: call next, skip, priority, complete
+ * Admin Queue Governance Page
+ * View all queues across all organizations, activate/deactivate them.
+ * Real-time updates via Socket.io.
  */
-import React, { useState, useEffect, useCallback } from 'react';
-import { locationService } from '@/services/location.service';
-import { tokenService } from '@/services/token.service';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { adminQueueService } from '@/services/adminQueue.service';
 import { useSocket } from '@/context/SocketContext';
 import { useToast } from '@/components/ToastProvider';
 import {
-  ChevronRight, Play, SkipForward, AlertTriangle,
-  CheckCircle2, Users, Phone, Crown, RefreshCw, Radio
+  Radio, CheckCircle2, XCircle, Clock, Building2, MapPin,
+  Filter, RefreshCw, Shield, AlertTriangle, Zap
 } from 'lucide-react';
 
-export default function AdminQueuesPage() {
-  const { socket, joinQueue } = useSocket();
-  const { showToast } = useToast();
-  const [locations, setLocations] = useState<any[]>([]);
-  const [selectedQueue, setSelectedQueue] = useState<number | null>(null);
-  const [queueTokens, setQueueTokens] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isActionLoading, setIsActionLoading] = useState(false);
+type Queue = {
+  id: number;
+  name: string;
+  description?: string;
+  status: 'pending' | 'active' | 'inactive';
+  organization_id: number;
+  organization_name?: string;
+  organization_email?: string;
+  location_name?: string;
+  location_type?: string;
+  location_address?: string;
+  current_number: number;
+  now_serving: number;
+  max_capacity: number;
+  created_at: string;
+};
 
-  useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const res = await locationService.getAll({ limit: 50 } as any);
-        setLocations(res.data.data.locations);
-      } catch (error) {
-        console.error('Failed to fetch locations:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchLocations();
+const statusConfig = {
+  pending: {
+    label: 'Pending',
+    color: 'bg-amber-100 text-amber-800 border-amber-200',
+    dotColor: 'bg-amber-500',
+    icon: <Clock size={14} />,
+  },
+  active: {
+    label: 'Active',
+    color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    dotColor: 'bg-emerald-500',
+    icon: <CheckCircle2 size={14} />,
+  },
+  inactive: {
+    label: 'Inactive',
+    color: 'bg-red-100 text-red-800 border-red-200',
+    dotColor: 'bg-red-400',
+    icon: <XCircle size={14} />,
+  },
+};
+
+export default function AdminQueuesPage() {
+  const [queues, setQueues] = useState<Queue[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'inactive'>('all');
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const { socket } = useSocket();
+  const { showToast } = useToast();
+
+  const fetchQueues = useCallback(async () => {
+    try {
+      const res = await adminQueueService.getAll();
+      setQueues(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch queues:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const fetchQueueTokens = useCallback(async () => {
-    if (!selectedQueue) return;
-    try {
-      const res = await tokenService.getQueueTokens(selectedQueue);
-      setQueueTokens(res.data.data);
-    } catch (error) {
-      console.error('Failed to fetch tokens:', error);
-    }
-  }, [selectedQueue]);
-
   useEffect(() => {
-    if (selectedQueue) {
-      fetchQueueTokens();
-      joinQueue(selectedQueue);
-    }
-  }, [selectedQueue, fetchQueueTokens, joinQueue]);
+    fetchQueues();
+  }, [fetchQueues]);
 
   // Real-time updates
   useEffect(() => {
     if (!socket) return;
-    const handleUpdate = () => fetchQueueTokens();
-    socket.on('queue-update', handleUpdate);
-    socket.on('token-called', handleUpdate);
+    const onQueueCreated = () => fetchQueues();
+    const onQueueActivated = () => fetchQueues();
+    const onQueueDeactivated = () => fetchQueues();
+    const onQueueDeleted = () => fetchQueues();
+
+    socket.on('queue_created', onQueueCreated);
+    socket.on('queue_activated', onQueueActivated);
+    socket.on('queue_deactivated', onQueueDeactivated);
+    socket.on('queue_deleted', onQueueDeleted);
     return () => {
-      socket.off('queue-update', handleUpdate);
-      socket.off('token-called', handleUpdate);
+      socket.off('queue_created', onQueueCreated);
+      socket.off('queue_activated', onQueueActivated);
+      socket.off('queue_deactivated', onQueueDeactivated);
+      socket.off('queue_deleted', onQueueDeleted);
     };
-  }, [socket, fetchQueueTokens]);
+  }, [socket, fetchQueues]);
 
-  const handleCallNext = async () => {
-    if (!selectedQueue) return;
-    setIsActionLoading(true);
+  const handleActivate = async (id: number) => {
+    setActionLoading(id);
     try {
-      const res = await tokenService.callNext(selectedQueue);
-      showToast(`🔔 ${res.data.message}`, 'success');
-      fetchQueueTokens();
-    } catch (error: any) {
-      showToast(error.response?.data?.message || 'Failed to call next token.', 'error');
+      const res = await adminQueueService.activate(id);
+      showToast(res.data.message || 'Queue activated!', 'success');
+      await fetchQueues();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Failed to activate queue.', 'error');
     } finally {
-      setIsActionLoading(false);
+      setActionLoading(null);
     }
   };
 
-  const handleSkip = async (tokenId: number) => {
+  const handleDeactivate = async (id: number) => {
+    setActionLoading(id);
     try {
-      await tokenService.skipToken(tokenId);
-      showToast('Token skipped.', 'info');
-      fetchQueueTokens();
-    } catch (error: any) {
-      showToast(error.response?.data?.message || 'Failed to skip token.', 'error');
+      const res = await adminQueueService.deactivate(id);
+      showToast(res.data.message || 'Queue deactivated!', 'success');
+      await fetchQueues();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Failed to deactivate queue.', 'error');
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const handleComplete = async (tokenId: number) => {
-    try {
-      await tokenService.completeToken(tokenId);
-      showToast('Token completed.', 'success');
-      fetchQueueTokens();
-    } catch (error: any) {
-      showToast(error.response?.data?.message || 'Failed to complete token.', 'error');
-    }
-  };
+  const filteredQueues = useMemo(() => {
+    if (filter === 'all') return queues;
+    return queues.filter(q => q.status === filter);
+  }, [queues, filter]);
 
-  const handlePriority = async (tokenId: number) => {
-    try {
-      await tokenService.setPriority(tokenId, { is_priority: true, priority_reason: 'Emergency' });
-      showToast('⚡ Priority set for token.', 'warning');
-      fetchQueueTokens();
-    } catch (error: any) {
-      showToast(error.response?.data?.message || 'Failed to set priority.', 'error');
-    }
-  };
+  const counts = useMemo(() => ({
+    all: queues.length,
+    pending: queues.filter(q => q.status === 'pending').length,
+    active: queues.filter(q => q.status === 'active').length,
+    inactive: queues.filter(q => q.status === 'inactive').length,
+  }), [queues]);
 
-  const handleCallSpecific = async (tokenId: number) => {
-    try {
-      await tokenService.callToken(tokenId);
-      showToast('Token called.', 'success');
-      fetchQueueTokens();
-    } catch (error: any) {
-      showToast(error.response?.data?.message || 'Failed to call token.', 'error');
-    }
-  };
-
-  // Categorize tokens
-  const servingTokens = queueTokens.filter(t => t.status === 'serving' || t.status === 'called');
-  const waitingTokens = queueTokens.filter(t => t.status === 'waiting');
-
-  // Get all queues across locations
-  const [allQueues, setAllQueues] = useState<any[]>([]);
-  useEffect(() => {
-    const fetchAllQueues = async () => {
-      const queuesList: any[] = [];
-      for (const loc of locations) {
-        try {
-          const res = await locationService.getById(loc.id);
-          res.data.data.queues.forEach((q: any) => {
-            queuesList.push({ ...q, location_name: loc.name });
-          });
-        } catch (e) { /* skip */ }
-      }
-      setAllQueues(queuesList);
-    };
-    if (locations.length > 0) fetchAllQueues();
-  }, [locations]);
+  if (isLoading) {
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="skeleton h-8 w-64 mb-6" />
+        <div className="grid grid-cols-4 gap-3 mb-6">
+          {[1, 2, 3, 4].map(i => <div key={i} className="skeleton h-12" />)}
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton h-24" />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--secondary)]">Queue Control</h1>
-          <p className="text-sm text-[var(--text-muted)]">Manage tokens in real-time</p>
+          <h1 className="text-2xl font-bold text-[var(--secondary)] flex items-center gap-2">
+            <Shield size={24} className="text-[var(--primary)]" /> Queue Governance
+          </h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            Approve, activate, or deactivate queues created by service providers
+          </p>
         </div>
+        <button
+          onClick={fetchQueues}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[var(--text-secondary)] border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+        >
+          <RefreshCw size={16} /> Refresh
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Queue Selection */}
-        <div className="lg:col-span-1">
-          <div className="card-static">
-            <h2 className="font-bold text-[var(--secondary)] mb-3">Select Queue</h2>
-            <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto">
-              {isLoading ? (
-                [1, 2, 3].map(i => <div key={i} className="skeleton h-16 w-full" />)
-              ) : allQueues.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)] text-center py-4">No queues found</p>
-              ) : (
-                allQueues.map((queue) => (
-                  <button
-                    key={queue.id}
-                    onClick={() => setSelectedQueue(queue.id)}
-                    className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
-                      selectedQueue === queue.id
-                        ? 'border-[var(--primary)] bg-[var(--primary-50)]'
-                        : 'border-transparent bg-gray-50 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-sm text-[var(--secondary)]">{queue.name}</p>
-                        <p className="text-xs text-[var(--text-muted)]">{queue.location_name}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${queue.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
-                        <ChevronRight size={14} className="text-[var(--text-muted)]" />
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
+      {/* Pending Alert */}
+      {counts.pending > 0 && (
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={20} className="text-amber-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-amber-900">
+              {counts.pending} queue{counts.pending > 1 ? 's' : ''} awaiting approval
+            </p>
+            <p className="text-sm text-amber-700 mt-0.5">
+              Providers have created queues that need your activation before users can see them.
+            </p>
           </div>
         </div>
+      )}
 
-        {/* Queue Control Panel */}
-        <div className="lg:col-span-2">
-          {!selectedQueue ? (
-            <div className="card-static text-center py-20">
-              <Radio size={48} className="text-[var(--text-muted)] mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-[var(--secondary)] mb-2">Select a Queue</h3>
-              <p className="text-sm text-[var(--text-secondary)]">Choose a queue from the left panel to manage tokens.</p>
-            </div>
-          ) : (
-            <>
-              {/* Action Buttons */}
-              <div className="card-static mb-4">
-                <div className="flex flex-wrap gap-3">
-                  <button onClick={handleCallNext} disabled={isActionLoading} className="btn-primary text-sm !py-2.5 disabled:opacity-50">
-                    <Play size={16} /> Call Next Token
-                  </button>
-                  <button onClick={fetchQueueTokens} className="btn-secondary text-sm !py-2.5">
-                    <RefreshCw size={16} /> Refresh
-                  </button>
-                </div>
-              </div>
-
-              {/* Currently Serving */}
-              {servingTokens.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-bold text-[var(--secondary)] mb-2 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    Now Serving / Called
-                  </h3>
-                  <div className="space-y-2">
-                    {servingTokens.map(token => (
-                      <div key={token.id} className="card-static flex items-center justify-between !py-3 bg-green-50 border-green-200">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xl font-bold text-green-700">{token.token_number}</span>
-                          <div>
-                            <p className="text-sm font-medium text-[var(--secondary)]">{token.user_name}</p>
-                            <p className="text-xs text-[var(--text-muted)]">{token.user_phone || token.user_email}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => handleComplete(token.id)} className="btn-success text-xs !py-1.5 !px-3">
-                            <CheckCircle2 size={14} /> Complete
-                          </button>
-                          <button onClick={() => handleSkip(token.id)} className="btn-secondary text-xs !py-1.5 !px-3">
-                            <SkipForward size={14} /> Skip
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Waiting Queue */}
-              <h3 className="text-sm font-bold text-[var(--secondary)] mb-2 flex items-center gap-2">
-                <Users size={16} className="text-[var(--primary)]" />
-                Waiting ({waitingTokens.length})
-              </h3>
-              <div className="space-y-2">
-                {waitingTokens.length === 0 ? (
-                  <div className="card-static text-center py-8">
-                    <p className="text-sm text-[var(--text-muted)]">🎉 No more tokens waiting!</p>
-                  </div>
-                ) : (
-                  waitingTokens.map((token, index) => (
-                    <div key={token.id} className={`card-static flex items-center justify-between !py-3 ${token.is_priority ? 'bg-amber-50 border-amber-200' : ''}`}>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-mono text-[var(--text-muted)] w-6">#{index + 1}</span>
-                        <span className="text-lg font-bold text-[var(--secondary)]">{token.token_number}</span>
-                        {token.is_priority && <Crown size={14} className="text-amber-500" />}
-                        <div className="hidden sm:block">
-                          <p className="text-sm font-medium text-[var(--secondary)]">{token.user_name}</p>
-                          <p className="text-xs text-[var(--text-muted)]">{token.user_phone || token.user_email}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => handleCallSpecific(token.id)} title="Call" className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors">
-                          <Phone size={14} />
-                        </button>
-                        <button onClick={() => handlePriority(token.id)} title="Set Priority" className="p-2 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors">
-                          <AlertTriangle size={14} />
-                        </button>
-                        <button onClick={() => handleSkip(token.id)} title="Skip" className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
-                          <SkipForward size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
-          )}
-        </div>
+      {/* Filter Tabs */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {(['all', 'pending', 'active', 'inactive'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setFilter(tab)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+              filter === tab
+                ? 'bg-[var(--primary)] text-white shadow-md shadow-blue-200'
+                : 'bg-white text-[var(--text-secondary)] border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            {tab === 'all' && <Filter size={14} />}
+            {tab === 'pending' && <Clock size={14} />}
+            {tab === 'active' && <CheckCircle2 size={14} />}
+            {tab === 'inactive' && <XCircle size={14} />}
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+              filter === tab ? 'bg-white/20' : 'bg-gray-100'
+            }`}>
+              {counts[tab]}
+            </span>
+          </button>
+        ))}
       </div>
+
+      {/* Queue List */}
+      {filteredQueues.length === 0 ? (
+        <div className="card-static text-center py-16">
+          <Radio size={48} className="text-[var(--text-muted)] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[var(--secondary)] mb-2">No Queues Found</h3>
+          <p className="text-[var(--text-secondary)]">
+            {filter === 'all' ? 'No queues have been created yet.' : `No ${filter} queues.`}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredQueues.map(queue => {
+            const cfg = statusConfig[queue.status] || statusConfig.pending;
+            const isLoading = actionLoading === queue.id;
+
+            return (
+              <div
+                key={queue.id}
+                className={`bg-white rounded-2xl border p-5 transition-all hover:shadow-md ${
+                  queue.status === 'pending' ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  {/* Queue Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h3 className="text-lg font-bold text-[var(--secondary)]">{queue.name}</h3>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.color}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dotColor}`} />
+                        {cfg.icon} {cfg.label}
+                      </span>
+                    </div>
+
+                    {queue.description && (
+                      <p className="text-sm text-[var(--text-secondary)] mt-1">{queue.description}</p>
+                    )}
+
+                    <div className="flex items-center gap-4 mt-2 flex-wrap">
+                      {queue.organization_name && (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                          <Building2 size={12} /> {queue.organization_name}
+                        </span>
+                      )}
+                      {queue.location_name && (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                          <MapPin size={12} /> {queue.location_name}
+                        </span>
+                      )}
+                      <span className="text-xs text-[var(--text-muted)]">
+                        Cap: {queue.max_capacity} • Serving: {queue.now_serving}/{queue.current_number}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {queue.status === 'pending' && (
+                      <button
+                        onClick={() => handleActivate(queue.id)}
+                        disabled={isLoading}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl hover:from-emerald-600 hover:to-emerald-700 shadow-sm shadow-emerald-200 transition-all disabled:opacity-50"
+                      >
+                        <Zap size={16} /> {isLoading ? 'Activating…' : 'Approve & Activate'}
+                      </button>
+                    )}
+                    {queue.status === 'active' && (
+                      <button
+                        onClick={() => handleDeactivate(queue.id)}
+                        disabled={isLoading}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all disabled:opacity-50"
+                      >
+                        <XCircle size={16} /> {isLoading ? 'Deactivating…' : 'Deactivate'}
+                      </button>
+                    )}
+                    {queue.status === 'inactive' && (
+                      <button
+                        onClick={() => handleActivate(queue.id)}
+                        disabled={isLoading}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={16} /> {isLoading ? 'Activating…' : 'Re-activate'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

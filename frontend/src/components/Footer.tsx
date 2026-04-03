@@ -4,11 +4,18 @@
  * Footer Component
  * Professional footer with links, contact info, and social icons
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Mail, Phone, MapPin, Globe, ExternalLink, Users } from 'lucide-react';
 
 export default function Footer() {
+  const [year, setYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Set after mount to avoid SSR/client render mismatches.
+    setYear(new Date().getFullYear());
+  }, []);
+
   return (
     <footer className="bg-[#1E293B] text-gray-300">
       {/* Main Footer */}
@@ -110,7 +117,7 @@ export default function Footer() {
       <div className="border-t border-gray-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-2">
           <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()} SmartQueue. All rights reserved.
+            © {year ?? ''} SmartQueue. All rights reserved.
           </p>
           <div className="flex gap-4">
             <a href="#" className="text-xs text-gray-500 hover:text-gray-400 transition-colors">Privacy Policy</a>

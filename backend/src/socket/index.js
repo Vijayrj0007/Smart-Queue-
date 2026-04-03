@@ -36,6 +36,19 @@ const initializeSocket = (io) => {
       console.log(`   → Joined room: user-${socket.user.id}`);
     }
 
+    // Admin: join admin_room for governance events (queue_created, etc.)
+    if (socket.user && socket.user.role === 'admin') {
+      socket.join('admin_room');
+      console.log(`   → Joined room: admin_room`);
+    }
+
+    // Multi-tenant: organizations use an org-scoped room.
+    // Services will emit org-specific updates to `org_<organizationId>`.
+    if (socket.user && socket.user.role === 'organization' && socket.user.organizationId) {
+      socket.join(`org_${socket.user.organizationId}`);
+      console.log(`   → Joined room: org_${socket.user.organizationId}`);
+    }
+
     registerQueueSocketHandlers(socket);
     registerNotificationSocketHandlers(socket);
 

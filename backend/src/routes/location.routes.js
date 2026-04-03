@@ -16,8 +16,8 @@ const createLocationSchema = {
 router.get('/', getLocations);
 router.get('/:id', getLocationById);
 
-// Admin routes
-router.post('/', authenticate, requireRole('admin'), validate(createLocationSchema), createLocation);
+// Admin & Organization routes
+router.post('/', authenticate, requireRole('admin', 'organization'), validate(createLocationSchema), createLocation);
 router.put('/:id', authenticate, requireRole('admin'), updateLocation);
 router.delete('/:id', authenticate, requireRole('admin'), deleteLocation);
 

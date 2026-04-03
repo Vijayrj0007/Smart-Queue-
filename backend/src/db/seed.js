@@ -1,6 +1,7 @@
 /**
  * Database Seed Script — SQLite version
  * Populates database with sample data for development/demo
+ * Includes 3-actor system: Admin, Provider (Organization), User
  */
 const bcrypt = require('bcryptjs');
 const path = require('path');
@@ -24,6 +25,7 @@ async function seed() {
     db.exec('DELETE FROM queues');
     db.exec('DELETE FROM locations');
     db.exec("DELETE FROM users WHERE email != ''");
+    db.exec("DELETE FROM organizations WHERE email != 'default@smartqueue.local'");
     console.log('  🗑️  Cleared existing data');
 
     // ---- USERS ----
@@ -48,6 +50,22 @@ async function seed() {
     
     const users = db.prepare('SELECT id, name, email, role FROM users').all();
     console.log(`  👥 Created ${users.length} users`);
+
+    // ---- ORGANIZATIONS (Providers) ----
+    const insertOrg = db.prepare(`
+      INSERT OR IGNORE INTO organizations (name, email, password_hash, type)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    const orgTransaction = db.transaction(() => {
+      insertOrg.run('City Hospital Group', 'hospital@provider.com', hashedPassword, 'hospital');
+      insertOrg.run('HealthFirst Network', 'healthfirst@provider.com', hashedPassword, 'clinic');
+      insertOrg.run('GovServ Solutions', 'govserv@provider.com', hashedPassword, 'government');
+    });
+    orgTransaction();
+
+    const orgs = db.prepare("SELECT id, name, email FROM organizations WHERE email != 'default@smartqueue.local'").all();
+    console.log(`  🏢 Created ${orgs.length} provider organizations`);
 
     // ---- LOCATIONS ----
     const insertLocation = db.prepare(`
@@ -98,29 +116,47 @@ async function seed() {
     console.log(`  🏥 Created ${locations.length} locations`);
 
     // ---- QUEUES ----
+    // Mix of statuses to demonstrate governance:
+    //   active   — approved by admin, visible to users
+    //   pending  — created by provider, awaiting admin approval
+    //   inactive — deactivated by admin
     const insertQueue = db.prepare(`
-      INSERT INTO queues (location_id, name, description, prefix, current_number, now_serving, avg_service_time, status, max_capacity)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO queues (location_id, organization_id, name, description, prefix, current_number, now_serving, avg_service_time, status, max_capacity)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    // Find org IDs (default=1 is the Default Organization from migration)
+    const hospitalOrg = orgs.find(o => o.email === 'hospital@provider.com');
+    const healthOrg = orgs.find(o => o.email === 'healthfirst@provider.com');
+    const govOrg = orgs.find(o => o.email === 'govserv@provider.com');
+    const hospitalOrgId = hospitalOrg?.id || 1;
+    const healthOrgId = healthOrg?.id || 1;
+    const govOrgId = govOrg?.id || 1;
+
     const queueTransaction = db.transaction(() => {
-      insertQueue.run(1, 'General OPD', 'General outpatient department for consultations', 'G', 15, 8, 10, 'active', 100);
-      insertQueue.run(1, 'Emergency', 'Emergency department - priority cases', 'E', 5, 3, 15, 'active', 50);
-      insertQueue.run(1, 'Pharmacy', 'Medicine dispensary counter', 'P', 20, 16, 3, 'active', 200);
-      insertQueue.run(1, 'Lab Tests', 'Blood tests and diagnostics', 'L', 12, 9, 8, 'active', 80);
-      insertQueue.run(2, 'General Consultation', 'Walk-in doctor consultations', 'C', 8, 5, 12, 'active', 50);
-      insertQueue.run(2, 'Dental Care', 'Dental checkup and procedures', 'D', 6, 4, 20, 'active', 30);
-      insertQueue.run(3, 'Document Verification', 'Document submission and verification', 'V', 25, 18, 7, 'active', 150);
-      insertQueue.run(3, 'Certificate Collection', 'Collect processed certificates', 'R', 10, 7, 5, 'active', 100);
-      insertQueue.run(4, 'Account Services', 'Account opening, closing, and modifications', 'A', 8, 5, 15, 'active', 40);
-      insertQueue.run(4, 'Loan Department', 'Loan applications and inquiries', 'LN', 5, 3, 20, 'active', 30);
-      insertQueue.run(5, 'Cardiology OPD', 'Heart specialist consultations', 'H', 10, 7, 15, 'active', 40);
-      insertQueue.run(5, 'Orthopedics OPD', 'Bone and joint specialist', 'O', 8, 5, 12, 'active', 40);
+      // Active queues (approved by admin)
+      insertQueue.run(1, hospitalOrgId, 'General OPD', 'General outpatient department for consultations', 'G', 15, 8, 10, 'active', 100);
+      insertQueue.run(1, hospitalOrgId, 'Emergency', 'Emergency department - priority cases', 'E', 5, 3, 15, 'active', 50);
+      insertQueue.run(1, hospitalOrgId, 'Pharmacy', 'Medicine dispensary counter', 'P', 20, 16, 3, 'active', 200);
+      insertQueue.run(1, hospitalOrgId, 'Lab Tests', 'Blood tests and diagnostics', 'L', 12, 9, 8, 'active', 80);
+      insertQueue.run(2, healthOrgId, 'General Consultation', 'Walk-in doctor consultations', 'C', 8, 5, 12, 'active', 50);
+      insertQueue.run(2, healthOrgId, 'Dental Care', 'Dental checkup and procedures', 'D', 6, 4, 20, 'active', 30);
+      insertQueue.run(3, govOrgId, 'Document Verification', 'Document submission and verification', 'V', 25, 18, 7, 'active', 150);
+      insertQueue.run(3, govOrgId, 'Certificate Collection', 'Collect processed certificates', 'R', 10, 7, 5, 'active', 100);
+      insertQueue.run(4, 1, 'Account Services', 'Account opening, closing, and modifications', 'A', 8, 5, 15, 'active', 40);
+      insertQueue.run(4, 1, 'Loan Department', 'Loan applications and inquiries', 'LN', 5, 3, 20, 'active', 30);
+
+      // Pending queues (awaiting admin approval — demonstrates governance)
+      insertQueue.run(5, hospitalOrgId, 'Cardiology OPD', 'Heart specialist consultations', 'H', 0, 0, 15, 'pending', 40);
+      insertQueue.run(5, healthOrgId, 'Orthopedics OPD', 'Bone and joint specialist', 'O', 0, 0, 12, 'pending', 40);
+
+      // Inactive queue (deactivated by admin)
+      insertQueue.run(2, healthOrgId, 'Skin Care', 'Dermatology appointments', 'SK', 0, 0, 15, 'inactive', 25);
     });
     queueTransaction();
 
-    const queues = db.prepare('SELECT id, name, location_id FROM queues').all();
-    console.log(`  📋 Created ${queues.length} queues`);
+    const queues = db.prepare('SELECT id, name, location_id, status FROM queues').all();
+    console.log(`  📋 Created ${queues.length} queues (${queues.filter(q=>q.status==='active').length} active, ${queues.filter(q=>q.status==='pending').length} pending, ${queues.filter(q=>q.status==='inactive').length} inactive)`);
 
     // ---- TOKENS ----
     const insertToken = db.prepare(`
@@ -154,8 +190,9 @@ async function seed() {
         tokenCount++;
       }
 
-      // Create tokens for other queues
-      for (const queue of queues.slice(1, 6)) {
+      // Create tokens for other active queues
+      const activeQueues = queues.filter(q => q.status === 'active');
+      for (const queue of activeQueues.slice(1, 6)) {
         for (let i = 1; i <= 5; i++) {
           const status = i <= 2 ? 'completed' : (i === 3 ? 'serving' : 'waiting');
           const userId = ((i - 1) % 6) + 3;
@@ -193,8 +230,11 @@ async function seed() {
 
     console.log('\n✅ Database seeded successfully!');
     console.log('\n📌 Demo Credentials:');
-    console.log('  Admin: admin@smartqueue.com / password123');
-    console.log('  User:  john@example.com / password123');
+    console.log('  Admin:    admin@smartqueue.com / password123');
+    console.log('  User:     john@example.com / password123');
+    console.log('  Provider: hospital@provider.com / password123');
+    console.log('  Provider: healthfirst@provider.com / password123');
+    console.log('  Provider: govserv@provider.com / password123');
 
   } catch (error) {
     console.error('\n❌ Seeding failed:', error.message);

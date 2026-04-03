@@ -3,7 +3,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const { getQueueById, createQueue, updateQueue, deleteQueue, resetQueue } = require('../controllers/queue.controller');
+const { getActiveQueues, getQueueById, createQueue, updateQueue, deleteQueue, resetQueue } = require('../controllers/queue.controller');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 
@@ -12,7 +12,8 @@ const createQueueSchema = {
   name: { required: true, type: 'string', min: 2, message: 'Queue name is required.' }
 };
 
-// Public route
+// Public routes — users only see active queues
+router.get('/', getActiveQueues);
 router.get('/:id', getQueueById);
 
 // Admin routes
@@ -22,3 +23,4 @@ router.delete('/:id', authenticate, requireRole('admin'), deleteQueue);
 router.put('/:id/reset', authenticate, requireRole('admin'), resetQueue);
 
 module.exports = router;
+

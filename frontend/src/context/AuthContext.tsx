@@ -6,13 +6,14 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService } from '@/services/auth.service';
+import { orgService } from '@/services/org.service';
 
 interface User {
   id: number;
   name: string;
   email: string;
   phone?: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'organization';
   avatarUrl?: string;
 }
 
@@ -21,8 +22,11 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, phone?: string) => Promise<void>;
+  isOrganization: boolean;
+  login: (email: string, password: string) => Promise<User>;
+  register: (name: string, email: string, password: string, phone?: string) => Promise<User>;
+  loginOrganization: (email: string, password: string) => Promise<User>;
+  registerOrganization: (name: string, email: string, password: string, type?: string) => Promise<User>;
   logout: () => void;
   updateUser: (data: Partial<User>) => void;
 }
@@ -54,18 +58,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const response = await authService.login({ email, password });
-    const { user: userData, accessToken, refreshToken } = response.data.data;
-    
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    
-    setUser(userData);
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
+
+    try {
+      const response = await authService.login({
+        email: normalizedEmail,
+        password: normalizedPassword,
+      });
+      const { user: userData, accessToken, refreshToken } = response.data.data;
+
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      setUser(userData);
+      return userData as User;
+    } catch (error: any) {
+      // If user credentials are valid for organization login,
+      // complete auth seamlessly instead of showing a hard 401.
+      if (error?.response?.status === 401) {
+        const response = await orgService.login({
+          email: normalizedEmail,
+          password: normalizedPassword,
+        });
+        const { organization, accessToken, refreshToken } = response.data.data;
+        const principal: User = {
+          id: organization.id,
+          name: organization.name,
+          email: organization.email,
+          role: 'organization',
+        };
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(principal));
+        setUser(principal);
+        return principal;
+      }
+      throw error;
+    }
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string, phone?: string) => {
-    const response = await authService.register({ name, email, password, phone });
+    const response = await authService.register({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password: password.trim(),
+      phone: phone?.trim(),
+    });
     const { user: userData, accessToken, refreshToken } = response.data.data;
     
     localStorage.setItem('accessToken', accessToken);
@@ -73,6 +113,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('user', JSON.stringify(userData));
     
     setUser(userData);
+    return userData as User;
+  }, []);
+
+  const loginOrganization = useCallback(async (email: string, password: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
+    try {
+      const response = await orgService.login({
+        email: normalizedEmail,
+        password: normalizedPassword,
+      });
+      const { organization, accessToken, refreshToken } = response.data.data;
+
+      const principal: User = {
+        id: organization.id,
+        name: organization.name,
+        email: organization.email,
+        role: 'organization',
+      };
+
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(principal));
+
+      setUser(principal);
+      return principal;
+    } catch (error: any) {
+      // Also allow existing user/admin accounts to sign in from org form accidentally.
+      if (error?.response?.status === 401) {
+        const response = await authService.login({
+          email: normalizedEmail,
+          password: normalizedPassword,
+        });
+        const { user: userData, accessToken, refreshToken } = response.data.data;
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        return userData as User;
+      }
+      throw error;
+    }
+  }, []);
+
+  const registerOrganization = useCallback(async (name: string, email: string, password: string, type?: string) => {
+    const response = await orgService.register({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password: password.trim(),
+      type: type?.trim(),
+    });
+    const { organization, accessToken, refreshToken } = response.data.data;
+
+    const principal: User = {
+      id: organization.id,
+      name: organization.name,
+      email: organization.email,
+      role: 'organization',
+    };
+
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('user', JSON.stringify(principal));
+
+    setUser(principal);
+    return principal;
   }, []);
 
   const logout = useCallback(() => {
@@ -99,8 +205,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'admin',
+        isOrganization: user?.role === 'organization',
         login,
         register,
+        loginOrganization,
+        registerOrganization,
         logout,
         updateUser,
       }}

@@ -6,6 +6,10 @@
  */
 require('dotenv').config();
 
+// Ensure database schema is up-to-date before serving any requests.
+// This prevents auth/login failures when a migration hasn't been applied yet.
+require('./db/migrate');
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -16,11 +20,15 @@ const rateLimit = require('express-rate-limit');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+const orgRoutes = require('./routes/org.routes');
+const orgQueueRoutes = require('./routes/orgQueue.routes');
+const orgTokenRoutes = require('./routes/orgToken.routes');
 const locationRoutes = require('./routes/location.routes');
 const queueRoutes = require('./routes/queue.routes');
 const tokenRoutes = require('./routes/token.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 // Import socket handler
 const { initializeSocket } = require('./socket/index');
@@ -116,11 +124,15 @@ app.get('/api/health', (req, res) => {
 
 // Mount route handlers
 app.use('/api/auth', authRoutes);
+app.use('/api/org', orgRoutes);
+app.use('/api/org/queues', orgQueueRoutes);
+app.use('/api/org', orgTokenRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/queues', queueRoutes);
 app.use('/api/tokens', tokenRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ===== ERROR HANDLING =====
 

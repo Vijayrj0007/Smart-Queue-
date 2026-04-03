@@ -27,6 +27,7 @@ function resolveSocketUrl() {
   const fallback = 'http://localhost:5000';
   const baseFromEnv = envBase || fallback;
 
+  // During SSR, avoid reading `window` (prevents server/client rendering mismatches).
   if (typeof window === 'undefined') return baseFromEnv;
 
   const host = window.location.hostname;
@@ -39,14 +40,13 @@ function resolveSocketUrl() {
     baseFromEnv.includes('127.0.0.1:5000') ||
     baseFromEnv.includes('0.0.0.0:5000');
 
+  // If the frontend is opened via LAN IP, but env points to localhost, swap to the LAN host.
   if (!isClientLocal && envLooksLikeLocalhost) {
     return `${window.location.protocol}//${window.location.hostname}:5000`;
   }
 
   return baseFromEnv;
 }
-
-const SOCKET_URL = resolveSocketUrl();
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -55,9 +55,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-    let didLogConnectError = false;
 
-    const newSocket = io(SOCKET_URL, {
+    const socketUrl = resolveSocketUrl();
+    const newSocket = io(socketUrl || undefined, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -69,11 +69,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     newSocket.on('connect', () => {
       console.log('🔌 Socket connected');
       setIsConnected(true);
-
-      // Join admin room if admin
-      if (user?.role === 'admin') {
-        newSocket.emit('join-admin', {});
-      }
     });
 
     newSocket.on('disconnect', () => {
@@ -81,12 +76,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(false);
     });
 
-    newSocket.on('connect_error', (error) => {
-      if (!didLogConnectError) {
-        didLogConnectError = true;
-        // Keep logs short to avoid flooding devtools in failure scenarios.
-        console.warn('Socket connection failed (will retry).');
-      }
+    newSocket.on('connect_error', () => {
+      // Intentionally quiet to avoid confusing users with transient dev-time failures.
+      // Components should rely on API calls for core functionality.
     });
 
     setSocket(newSocket);

@@ -3,6 +3,16 @@
  */
 const queueService = require('../services/queue.service');
 
+const getActiveQueues = async (req, res) => {
+  try {
+    const result = await queueService.getActiveQueues();
+    res.json({ success: true, data: result.data });
+  } catch (error) {
+    console.error('Get active queues error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch queues.' });
+  }
+};
+
 const getQueueById = async (req, res) => {
   try {
     const result = await queueService.getQueueById(req.params.id);
@@ -62,4 +72,5 @@ const resetQueue = async (req, res) => {
   }
 };
 
-module.exports = { getQueueById, createQueue, updateQueue, deleteQueue, resetQueue };
+module.exports = { getActiveQueues, getQueueById, createQueue, updateQueue, deleteQueue, resetQueue };
+

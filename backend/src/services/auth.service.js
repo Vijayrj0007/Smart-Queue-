@@ -3,7 +3,7 @@
  */
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const userRepository = require('../repositories/user.repository');
+const authRepository = require('../repositories/auth.repository');
 
 function generateTokens(user) {
   const accessToken = jwt.sign(
@@ -20,9 +20,12 @@ function generateTokens(user) {
 }
 
 async function register(body) {
-  const { name, email, password, phone } = body;
+  const normalizedEmail = String(body.email || '').trim().toLowerCase();
+  const name = String(body.name || '').trim();
+  const password = String(body.password || '');
+  const phone = typeof body.phone === 'string' ? body.phone.trim() : body.phone;
 
-  const existing = await userRepository.findIdByEmail(email);
+  const existing = await authRepository.findIdByEmail(normalizedEmail);
   if (existing.rows.length > 0) {
     return { ok: false, status: 409, message: 'An account with this email already exists.' };
   }
@@ -30,7 +33,7 @@ async function register(body) {
   const salt = await bcrypt.genSalt(12);
   const passwordHash = await bcrypt.hash(password, salt);
 
-  const result = await userRepository.insertUser(name, email, passwordHash, phone);
+  const result = await authRepository.insertUser(name, normalizedEmail, passwordHash, phone);
   const user = result.rows[0];
   const tokens = generateTokens(user);
 
@@ -52,9 +55,10 @@ async function register(body) {
 }
 
 async function login(body) {
-  const { email, password } = body;
+  const normalizedEmail = String(body.email || '').trim().toLowerCase();
+  const password = String(body.password || '');
 
-  const result = await userRepository.findByEmailForLogin(email);
+  const result = await authRepository.findByEmailForLogin(normalizedEmail);
   if (result.rows.length === 0) {
     return { ok: false, status: 401, message: 'Invalid email or password.' };
   }
@@ -96,7 +100,7 @@ async function refreshAccessToken(refreshTokenValue) {
 
   try {
     const decoded = jwt.verify(refreshTokenValue, process.env.JWT_REFRESH_SECRET);
-    const result = await userRepository.findByIdForRefresh(decoded.id);
+    const result = await authRepository.findByIdForRefresh(decoded.id);
 
     if (result.rows.length === 0 || !result.rows[0].is_active) {
       return { ok: false, status: 401, message: 'Invalid refresh token.' };
@@ -111,7 +115,7 @@ async function refreshAccessToken(refreshTokenValue) {
 }
 
 async function getProfile(userId) {
-  const result = await userRepository.findProfileById(userId);
+  const result = await authRepository.findProfileById(userId);
   if (result.rows.length === 0) {
     return { ok: false, status: 404, message: 'User not found.' };
   }
@@ -120,7 +124,7 @@ async function getProfile(userId) {
 
 async function updateProfile(userId, body) {
   const { name, phone } = body;
-  const result = await userRepository.updateProfile(name, phone, userId);
+  const result = await authRepository.updateProfile(name, phone, userId);
   return {
     ok: true,
     message: 'Profile updated successfully.',

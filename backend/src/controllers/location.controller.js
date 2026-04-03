@@ -26,7 +26,8 @@ const getLocationById = async (req, res) => {
 
 const createLocation = async (req, res) => {
   try {
-    const result = await locationService.createLocation(req.body, req.user.id);
+    const adminId = req.user.role === 'admin' ? req.user.id : null;
+    const result = await locationService.createLocation(req.body, adminId);
     if (!result.ok) return res.status(result.status).json({ success: false, message: result.message });
     res.status(result.status).json({
       success: true,

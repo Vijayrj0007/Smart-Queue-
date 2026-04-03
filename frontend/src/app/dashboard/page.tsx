@@ -36,23 +36,33 @@ export default function DashboardPage() {
   const { showToast } = useToast();
   const [activeTokens, setActiveTokens] = useState<ActiveToken[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchTokens = useCallback(async () => {
+    setError(null);
     try {
       const res = await tokenService.getMyTokens();
       setActiveTokens(res.data.data);
-      // Join queue rooms for real-time updates
-      res.data.data.forEach((t: ActiveToken) => joinQueue(t.queue_id));
     } catch (error) {
       console.error('Failed to fetch tokens:', error);
+      setError('Failed to load your active tokens.');
     } finally {
       setIsLoading(false);
     }
-  }, [joinQueue]);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) fetchTokens();
   }, [isAuthenticated, fetchTokens]);
+
+  // Ensure we join the queue rooms after both:
+  // 1) tokens are loaded
+  // 2) the socket is ready
+  useEffect(() => {
+    if (!socket) return;
+    if (!activeTokens || activeTokens.length === 0) return;
+    activeTokens.forEach((t) => joinQueue(t.queue_id));
+  }, [socket, activeTokens, joinQueue]);
 
   // Listen for real-time updates
   useEffect(() => {
@@ -140,6 +150,14 @@ export default function DashboardPage() {
                 <div className="skeleton h-4 w-36" />
               </div>
             ))}
+          </div>
+        ) : error ? (
+          <div className="card-static text-center py-10">
+            <h3 className="text-xl font-bold text-[var(--secondary)] mb-2">Something went wrong</h3>
+            <p className="text-[var(--text-secondary)] mb-6">{error}</p>
+            <button onClick={fetchTokens} className="btn-primary">
+              Retry
+            </button>
           </div>
         ) : activeTokens.length === 0 ? (
           <div className="card-static text-center py-16">

@@ -3,7 +3,8 @@
  */
 const { query } = require('../config/db');
 
-const findIdByEmail = (email) => query('SELECT id FROM users WHERE email = $1', [email]);
+const findIdByEmail = (email) =>
+  query('SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))', [email]);
 
 const insertUser = (name, email, passwordHash, phone) =>
   query(
@@ -15,7 +16,7 @@ const insertUser = (name, email, passwordHash, phone) =>
 
 const findByEmailForLogin = (email) =>
   query(
-    'SELECT id, name, email, password_hash, phone, role, avatar_url, is_active FROM users WHERE email = $1',
+    'SELECT id, name, email, password_hash, phone, role, avatar_url, is_active FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))',
     [email]
   );
 

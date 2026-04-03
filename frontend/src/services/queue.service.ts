@@ -4,6 +4,9 @@
 import api from '@/lib/api';
 
 export const queueService = {
+  /** Get all active queues (user-facing — only status = 'active') */
+  getActive: () => api.get('/queues'),
+
   getById: (id: number) => api.get(`/queues/${id}`),
 
   create: (data: Record<string, unknown>) => api.post('/queues', data),

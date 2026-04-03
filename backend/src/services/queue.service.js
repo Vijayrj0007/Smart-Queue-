@@ -83,10 +83,142 @@ async function resetQueue(id) {
   return { ok: true, message: 'Queue reset successfully.' };
 }
 
+// ---------- Organization-scoped (multi-tenant) ----------
+
+async function getOrganizationQueues(organizationId) {
+  const result = await queueRepository.findManyByOrganizationId(organizationId);
+  return { ok: true, data: result.rows };
+}
+
+async function createQueueForOrganization(organizationId, body) {
+  const { location_id, name, description, prefix, max_capacity, avg_service_time } = body;
+
+  const locationCheck = await locationRepository.existsById(location_id);
+  if (locationCheck.rows.length === 0) {
+    return { ok: false, status: 404, message: 'Location not found.' };
+  }
+
+  const result = await queueRepository.insertForOrganization(
+    organizationId,
+    location_id,
+    name,
+    description,
+    prefix || 'A',
+    max_capacity || 100,
+    avg_service_time || 5
+  );
+
+  // New queues start as 'pending' — admin must activate
+  if (result.rows[0]) {
+    await queueRepository.updateStatusById(result.rows[0].id, 'pending');
+    result.rows[0].status = 'pending';
+  }
+
+  return { ok: true, status: 201, message: 'Queue created (pending admin approval).', data: result.rows[0] };
+}
+
+async function updateQueueForOrganization(organizationId, id, body) {
+  // Provider cannot change status — strip it
+  const { name, description, prefix, max_capacity, avg_service_time } = body;
+  const result = await queueRepository.updateByIdForOrganization(
+    organizationId,
+    id,
+    name,
+    description,
+    prefix,
+    max_capacity,
+    avg_service_time,
+    undefined // status is NOT passed — providers cannot change it
+  );
+
+  if (result.rows.length === 0) {
+    return { ok: false, status: 404, message: 'Queue not found.' };
+  }
+
+  return { ok: true, message: 'Queue updated successfully.', data: result.rows[0] };
+}
+
+async function deleteQueueForOrganization(organizationId, id) {
+  const existing = await queueRepository.findSummaryByIdForOrganization(organizationId, id);
+  if (existing.rows.length === 0) {
+    return { ok: false, status: 404, message: 'Queue not found.' };
+  }
+
+  await queueRepository.deleteByIdForOrganization(organizationId, id);
+  return {
+    ok: true,
+    message: `Queue \"${existing.rows[0].name}\" deleted successfully.`,
+  };
+}
+
+async function resetQueueForOrganization(organizationId, id) {
+  const r = await queueRepository.resetCountersForOrganization(organizationId, id);
+  if (r.rowCount === 0) return { ok: false, status: 404, message: 'Queue not found.' };
+
+  await queueRepository.cancelWaitingTokensForQueueForOrganization(organizationId, id);
+  return { ok: true, message: 'Queue reset successfully.' };
+}
+
+// ---------- Admin governance ----------
+
+async function getAllQueuesAdmin() {
+  const result = await queueRepository.findAllWithOrgAndLocation();
+  return { ok: true, data: result.rows };
+}
+
+async function activateQueue(id) {
+  const existing = await queueRepository.findById(id);
+  if (existing.rows.length === 0) {
+    return { ok: false, status: 404, message: 'Queue not found.' };
+  }
+
+  const queue = existing.rows[0];
+  if (queue.status === 'active') {
+    return { ok: false, status: 400, message: 'Queue is already active.' };
+  }
+
+  const result = await queueRepository.updateStatusById(id, 'active');
+  return { ok: true, message: 'Queue activated successfully.', data: result.rows[0] };
+}
+
+async function deactivateQueue(id) {
+  const existing = await queueRepository.findById(id);
+  if (existing.rows.length === 0) {
+    return { ok: false, status: 404, message: 'Queue not found.' };
+  }
+
+  const queue = existing.rows[0];
+  if (queue.status === 'inactive') {
+    return { ok: false, status: 400, message: 'Queue is already inactive.' };
+  }
+
+  const result = await queueRepository.updateStatusById(id, 'inactive');
+  return { ok: true, message: 'Queue deactivated successfully.', data: result.rows[0] };
+}
+
+// ---------- User-facing ----------
+
+async function getActiveQueues() {
+  const result = await queueRepository.findActiveQueues();
+  return { ok: true, data: result.rows };
+}
+
 module.exports = {
   getQueueById,
   createQueue,
   updateQueue,
   deleteQueue,
   resetQueue,
+  // org-scoped
+  getOrganizationQueues,
+  createQueueForOrganization,
+  updateQueueForOrganization,
+  deleteQueueForOrganization,
+  resetQueueForOrganization,
+  // admin governance
+  getAllQueuesAdmin,
+  activateQueue,
+  deactivateQueue,
+  // user-facing
+  getActiveQueues,
 };

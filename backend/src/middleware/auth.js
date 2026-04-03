@@ -28,6 +28,10 @@ const authenticate = (req, res, next) => {
       role: decoded.role,
       name: decoded.name
     };
+
+    // Multi-tenant: organizations include organizationId in JWT.
+    // For users/admins, this will be undefined and remains backward compatible.
+    req.organizationId = decoded.organizationId ?? null;
     
     next();
   } catch (error) {
@@ -86,6 +90,7 @@ const optionalAuth = (req, res, next) => {
         role: decoded.role,
         name: decoded.name
       };
+      req.organizationId = decoded.organizationId ?? null;
     }
   } catch (error) {
     // Token invalid — continue without auth

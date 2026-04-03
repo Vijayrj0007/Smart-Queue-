@@ -66,6 +66,56 @@ const findQueueTokensForAdmin = (queueId, status) => {
   );
 };
 
+const findQueueTokensForOrganization = (queueId, organizationId, status) => {
+  let conditions = [
+    't.queue_id = $1',
+    'q.organization_id = $2',
+    "date(t.booked_at) = date('now')",
+  ];
+  const params = [queueId, organizationId];
+
+  if (status) {
+    conditions.push(`t.status = $${params.length + 1}`);
+    params.push(status);
+  }
+
+  return query(
+    `SELECT t.*, 
+            u.name as user_name, u.phone as user_phone, u.email as user_email
+     FROM tokens t
+     JOIN users u ON u.id = t.user_id
+     JOIN queues q ON q.id = t.queue_id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY t.is_priority DESC, t.position ASC`,
+    params
+  );
+};
+
+// ---------- Organization-scoped ownership helpers ----------
+
+const queueBelongsToOrganization = (queueId, organizationId) =>
+  query(`SELECT id FROM queues WHERE id = $1 AND organization_id = $2`, [queueId, organizationId]);
+
+const tokenBelongsToOrganization = (tokenId, organizationId) =>
+  query(
+    `SELECT t.id, t.queue_id
+     FROM tokens t
+     JOIN queues q ON q.id = t.queue_id
+     WHERE t.id = $1 AND q.organization_id = $2`,
+    [tokenId, organizationId]
+  );
+
+const findUsersInOrganizationQueues = (organizationId) =>
+  query(
+    `SELECT DISTINCT u.id, u.name, u.phone, u.email
+     FROM tokens t
+     JOIN queues q ON q.id = t.queue_id
+     JOIN users u ON u.id = t.user_id
+     WHERE q.organization_id = $1 AND t.status IN ('waiting', 'called', 'serving')
+     ORDER BY u.name ASC`,
+    [organizationId]
+  );
+
 const findByIdAndStatus = (tokenId, statuses) => {
   const placeholders = statuses.map((_, i) => `$${i + 2}`).join(', ');
   return query(`SELECT * FROM tokens WHERE id = $1 AND status IN (${placeholders})`, [tokenId, ...statuses]);
@@ -198,6 +248,10 @@ module.exports = {
   findCancellableByUser,
   setTokenCancelled,
   findQueueTokensForAdmin,
+  findQueueTokensForOrganization,
+  queueBelongsToOrganization,
+  tokenBelongsToOrganization,
+  findUsersInOrganizationQueues,
   findByIdAndStatus,
   findByIdWaiting,
   updateTokenServing,

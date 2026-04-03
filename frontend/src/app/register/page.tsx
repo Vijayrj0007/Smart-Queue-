@@ -34,15 +34,21 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      await register(formData.name, formData.email, formData.password, formData.phone);
+      const principal = await register(formData.name, formData.email, formData.password, formData.phone);
       showToast('Account created successfully!', 'success');
-      router.push('/dashboard');
+      router.push(principal.role === 'admin' ? '/admin' : '/dashboard');
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||
         error?.message ||
         'Registration failed. Please try again.';
-      showToast(message, 'error');
+      const status = error?.response?.status;
+      if (status === 409) {
+        showToast('Account already exists. Redirecting to login...', 'info');
+        router.push(`/login?email=${encodeURIComponent(formData.email.trim().toLowerCase())}`);
+        return;
+      }
+      showToast(status ? `Registration failed (${status}): ${message}` : message, 'error');
     } finally {
       setIsLoading(false);
     }

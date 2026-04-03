@@ -3,7 +3,7 @@
  */
 const { getClient } = require('../config/db');
 const tokenRepository = require('../repositories/token.repository');
-const { emitQueueUpdate, emitTokenCalledToQueue } = require('../socket/queue.socket');
+const { emitQueueUpdate, emitTokenCalledToQueue, emitOrgQueueUpdate } = require('../socket/queue.socket');
 const { emitYourTurn } = require('../socket/notification.socket');
 
 function mapMyTokens(rows) {
@@ -159,6 +159,18 @@ async function cancelToken(tokenId, userId, io) {
 
 async function getQueueTokens(queueId, status) {
   const result = await tokenRepository.findQueueTokensForAdmin(queueId, status);
+  return { ok: true, data: result.rows };
+}
+
+// ---------- Organization-scoped actions ----------
+
+async function getQueueTokensForOrganization(queueId, organizationId, status) {
+  const result = await tokenRepository.findQueueTokensForOrganization(queueId, organizationId, status);
+  return { ok: true, data: result.rows };
+}
+
+async function getOrganizationUsers(organizationId) {
+  const result = await tokenRepository.findUsersInOrganizationQueues(organizationId);
   return { ok: true, data: result.rows };
 }
 
@@ -355,16 +367,78 @@ async function callNextToken(queueId, io) {
   }
 }
 
+async function callNextTokenForOrganization(queueId, organizationId, io) {
+  const ownsQueue = await tokenRepository.queueBelongsToOrganization(queueId, organizationId);
+  if (ownsQueue.rows.length === 0) {
+    return { ok: false, status: 403, message: 'You do not have access to this queue.' };
+  }
+
+  const result = await callNextToken(queueId, io);
+  if (result.ok) {
+    emitOrgQueueUpdate(io, organizationId, {
+      type: 'token-called',
+      queueId: parseInt(queueId, 10),
+      tokenId: result.data.id,
+      tokenNumber: result.data.token_number,
+    });
+  }
+
+  return result;
+}
+
+async function skipTokenForOrganization(tokenId, organizationId, io) {
+  const ownership = await tokenRepository.tokenBelongsToOrganization(tokenId, organizationId);
+  if (ownership.rows.length === 0) {
+    return { ok: false, status: 403, message: 'You do not have access to this token.' };
+  }
+
+  const result = await skipToken(tokenId, io);
+  if (result.ok) {
+    emitOrgQueueUpdate(io, organizationId, {
+      type: 'token-skipped',
+      queueId: result.data.queue_id,
+      tokenId: result.data.id,
+      tokenNumber: result.data.token_number,
+    });
+  }
+
+  return result;
+}
+
+async function completeTokenForOrganization(tokenId, organizationId, io) {
+  const ownership = await tokenRepository.tokenBelongsToOrganization(tokenId, organizationId);
+  if (ownership.rows.length === 0) {
+    return { ok: false, status: 403, message: 'You do not have access to this token.' };
+  }
+
+  const result = await completeToken(tokenId, io);
+  if (result.ok) {
+    emitOrgQueueUpdate(io, organizationId, {
+      type: 'token-completed',
+      queueId: result.data.queue_id,
+      tokenId: result.data.id,
+      tokenNumber: result.data.token_number,
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   bookToken,
   getMyTokens,
   getTokenHistory,
   cancelToken,
   getQueueTokens,
+  getQueueTokensForOrganization,
+  getOrganizationUsers,
   callToken,
   serveToken,
   completeToken,
   skipToken,
   setPriority,
   callNextToken,
+  callNextTokenForOrganization,
+  skipTokenForOrganization,
+  completeTokenForOrganization,
 };
